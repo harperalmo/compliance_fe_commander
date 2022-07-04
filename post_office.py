@@ -19,17 +19,46 @@ which for now is a json string made from the actual content.
 class Letter
 The Letter class is used to send information through the post office to other
 entities.
-
 """
+print("importing post_office.py")
+
+def letter_from_list( letter_as_list):
+    """Can be used to get a letter object from a list in the form
+    ['desintation id', 'source id', 'content']. Returns a letter object that
+    contains the list values"""
+    return Letter(letter_as_list[0], letter_as_list[1], letter_as_list[2])
 
 class Letter:
     """ used to send information from one entity to another. It consists of
     a return address, recipient address, and information"""
     
-    def __init__( self, recipient, sender, info):
-        self._to = recipient
-        self._from = sender
-        self._info = info
+    def __init__( self, destination_id=None, source_id=None, info=None):
+        self._to = destination_id
+        self._from = source_id
+        self._content = info
+        
+    def source(self):
+        return self._from
+    
+    def destination(self):
+        return self._to
+    
+    def content(self):
+        return self._content
+    
+    
+    def letter_to_list(self):
+        return ( [self._to, self._from, self._content])
+    
+    def letter_from_list( self, letter_as_list):
+        """Can be used to get a letter object from a list in the form
+        ['desintation id', 'source id', 'content']. Returns a letter object that
+        contains the list values. There must be a better way, but one can
+        create an empty letter to use to call this: l=Letter(); l.letter_..."""
+        return Letter(letter_as_list[0], letter_as_list[1], letter_as_list[2])
+    
+ #   def unpack(self, packed_letter):
+  #      return Letter(packed_letter[0],packed_letter[1], packed_letter[2])
     
 
 class PostOffice:
@@ -39,9 +68,10 @@ class PostOffice:
     """
    
    
-    def __init__(self):
+    def __init__(self, msg):
         """initialization. There are no passed-in parms"""
         self._registrants = {}
+        self.id_msg = msg
 
 
     def register( self, id=None, callback=None):
@@ -52,25 +82,49 @@ class PostOffice:
         self._registrants[id] = callback
 
     
-    def post_letter( self, letter=None):
+    def post( self, letter=None):
         """send a letter through the post office."""
         if letter != None:
-            print(f"To: {letter._to},  from: {letter._from}, info: {letter._info}")
-            cb = self._registrants[letter._to]
+            cb = self._registrants[letter.destination()]
             cb(letter)
         else:
-            print("send a letter through the post office.")
+            print("Letter not supplied! it is None")
 
 if __name__ == "__main__":
     
-    id1 = "<1>"
-    id2 = "<2>"
-    
-    def cb3(letter):
-        print("in cb3")
-        print(f"To: {letter._to},  from: {letter._from}, info: {letter._info}")
-    
-    def cb4(letter):
-        print("In cb4")
-        print(f"To: {letter._to},  from: {letter._from}, info: {letter._info}")
+    class LetterWriter1:
+        def __init__(self):
+            self.myid = "LW1"
+        
+        def callback1(self, letter):
+            sent_from = letter.source()
+            sent_to   = letter.destination()
+            info = letter.content()
+            print(f"Callback1: {sent_from} sent a letter to {sent_to} stating <{info}>")
+            
+        def my_id(self):
+            return self.myid
+        
+
+    class LetterWriter2:
+        def __init__(self):
+            self.myid = "LW2"
+        
+        def callback2(self, letter):
+            sent_from = letter.source()
+            sent_to   = letter.destination()
+            info = letter.content()
+            print(f"Callback2: {sent_from} sent a letter to {sent_to} stating <{info}>")
+        
+        def my_id(self):
+            return self.myid
+
+    po = PostOffice('module test')
+    lw1 = LetterWriter1()
+    lw2 = LetterWriter2()
+
+    po.register(lw1.my_id(), lw1.callback1)
+    po.register(lw2.my_id(), lw2.callback2)
+
+
         

@@ -26,7 +26,12 @@ send over to the backend
 from PyQt5.QtCore import (pyqtSignal,
                           QObject,
                           )
+import post_office
 
+_axis_separator = '&' #used for mutli-axis cmds to separate the axes in display
+
+
+print("Importing commands.py")
 
 class Command:
     """Stores info for a single command. Probably just for internal use,
@@ -122,13 +127,10 @@ class CommandList:
                 self.__class__.dict_.setdefault(name , cmd)
             self.__class__._need_dict = False
             
-    def set_increment(distance):
+    def set_increment(self, distance):
         self.__class__.increment_distance = distance
         
-    def get_command(self, cmd_name, axis, parm_list, blocking):
-        #create command list
-        print(f"Sending <{cmd_name}> to {axis}, with {parm_list} and blocking = {blocking}.")
-        
+    
 class CommandInterpreter(QObject):
     '''Responsible for transforming a user-created command into several commands
     to the backend to insure safe movement, more "atomic" commands with respect
@@ -137,15 +139,54 @@ class CommandInterpreter(QObject):
     #signals for inter-object communication
     gotNewCommands = pyqtSignal() #tell CommMarshal that commands are available.
     
-    def __init__(self):
+    
+    def __init__(self, po):
         super().__init__()
+        self._po_id = 'ci'
         self.cmds_to_send = [] #CommMarshal will get commands here
+        print(f"in CmdIntrp, msg in po: {po.id_msg}")
+        self.post_office = po
+        self.post_office.register(self._po_id, self.mail_call)
+        
+    
+    def mail_call( self,letter ):
+        print(f"you've got mail in Cmd_intrp.  {letter}")
+        
+    
+    def create_low_level_cmd_list( self,name, axes, parm_list, block):
+        """takes the parts of a high level command created by the user
+        and returns a list of low level commands that are sent along to
+        the back end via the marshaller.
+        TO DO: Handle mutli-axis commands and safety insertions, e.g. z axis
+        up before movement, as well as pause to stop stuff in order to take a
+        measurement. Perhaps a gui red/green button is needed to indicate
+        pause state..."""
+        
+        #Create a single commmand for each axis in a multi-axis command
+        axis_list = axes.split(sep=_axis_separator)
+        cmds = []
+        for axis in axis_list:
+            #create cmd list
+            n = name; a = axis; p = parm_list[0]
+            cmd = [n, a, p, block]
+            print(f"cmds.py.lowlevel: cmd = {cmd}")
+            cmds.append(cmd)
+        return cmds
+    
+        
     
     
-    def send_command(self, name, axis, parm_list, block):
+    def send_command(self, name, axes, parm_list, block):
         """ The ui that gets a user-created command should call this to start
         the process that sends the command to the backend  This should be a call
         to the ESP32 over serial comm I believe. NOT an Emit????"""
-        print(f"Need to process <{name}>")
+        
+        #TOO: Map command into possible a few lower level commands. This results
+        #in a cmd_list that needs to be sent to the marshaller, one at a time
+        cmd_list = self.create_low_level_cmd_list( name, axes, parm_list, block)
+        for cmd in cmd_list:
+            letter = post_office.Letter('m', self._po_id, cmd)
+            self.post_office.post(letter)
+
         self.gotNewCommands.emit()
         

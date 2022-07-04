@@ -4,7 +4,7 @@
   communication protocol.
   
   The component names and their ids are stored in a file who's name is stored
-  in the member attribute __storage_name. This is a json file. The components
+  in the member attribute _storage_name. This is a json file. The components
   include the marshaller attached to the Raspberry pi and the axis handlers on
   the backend. The marshaller and axis handlers are referred to by the strings
   'm', 'x', 'y', 'z', and 't' respectively. The storage file contains a list
@@ -22,9 +22,9 @@ class ComponentIdManager:
     """ Manages access to component ids used for communication in the system."""
     
     #component info 
-    __storage_name = "componentIds.json" #file storage for component info
-    __comp_names_dict = {}  #All component names
-    __comp_ids_dict = {}    #Existing components
+    _storage_name = "componentIds.json" #file storage for component info
+    _comp_names_dict = {}  #All component names
+    _comp_ids_dict = {}    #Existing components
 
     
     #constants for type of id return value. See get_id, a method that uses these
@@ -41,17 +41,17 @@ class ComponentIdManager:
         #allows us to add components programmatically as project development
         #continues
 
-        self.__get_current_names_and_ids() #Populate the component info dicts.
+        self._get_current_names_and_ids() #Populate the component info dicts.
         
         
-    def __get_current_names_and_ids(self):
+    def _get_current_names_and_ids(self):
         """Private function used to get component names and current existing
            ids into dictionary. """
         #access the contents of the storage file
-        with open(self.__storage_name) as json_file:
+        with open(self._storage_name) as json_file:
             json_data = json.load(json_file)
-            self.__comp_names_dict = json_data[0]
-            self.__comp_ids_dict = json_data[1]
+            self._comp_names_dict = json_data[0]
+            self._comp_ids_dict = json_data[1]
             json_file.close()
             
                      
@@ -85,8 +85,8 @@ class ComponentIdManager:
            bytes (BYTES)needed for establishing communication (espnow mac id as
            byte string) or as a STRING that can be used to display to users.
            format = [BYTES, STRING]"""
-        if keyword in self.__comp_ids_dict:
-            id = self.__comp_ids_dict[keyword]
+        if keyword in self._comp_ids_dict:
+            id = self._comp_ids_dict[keyword]
             if format == self.BYTES:
                 id = self.mac_str_to_bytes(id)
             return id
@@ -95,13 +95,13 @@ class ComponentIdManager:
     
     def get_current_component_names(self):
         """Returns a list of current existing component names"""
-        return list(self.__comp_ids_dict.keys())
+        return list(self._comp_ids_dict.keys())
     
     def get_component_label( self, keyword):
         """returns a component label for one of the component ids, which are
         'm', 'x', 'y', 'z', and 't' for the marshaller and axis handlers"""
-        if keyword in self.__comp_names_dict:
-            return self.__comp_names_dict[keyword]
+        if keyword in self._comp_names_dict:
+            return self._comp_names_dict[keyword]
         else:
             print("get_compoent_label: KEWORD NOT FOUND!")
             return None
@@ -116,31 +116,31 @@ class ComponentIdManager:
         be removed from the component id dictionary if it exists. This allows
         components to be removed during development."""
         update_storage = False
-        if keyword in self.__comp_names_dict:
+        if keyword in self._comp_names_dict:
             #check for removal
             if id_str == None:
-                if keyword in self.__comp_ids_dict:
-                    del self.__comp_ids_dict[keyword] #no id &exists, so remove
+                if keyword in self._comp_ids_dict:
+                    del self._comp_ids_dict[keyword] #no id exists, so remove
                     update_storage = True
                 else: #no name and no id string - do nothing
                     update_storage = False
             else: #valid name and non-empty string
-                self.__comp_ids_dict.update({keyword:id_str})
+                self._comp_ids_dict.update({keyword:id_str})
                 update_storage = True
                 
             if update_storage:
-                self.__update_storage()
+                self._update_storage()
         else:
             print(f'replace_id got bad keyword: {keyword}. Not updating.')
 
             
-    def __update_storage(self):
+    def _update_storage(self):
         """ Updates the storage file to reflect current state of the
             components dictionary. This is done when an id gets updated."""
         #jsonize the dictionary so it can be written into the file
-        data = [self.__comp_names_dict, self.__comp_ids_dict]
+        data = [self._comp_names_dict, self._comp_ids_dict]
         new_contents = json.dumps(data, indent = 4)
-        f = open(self.__storage_name, "w")
+        f = open(self._storage_name, "w")
         f.write(new_contents)
         f.close()
         

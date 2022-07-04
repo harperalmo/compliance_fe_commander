@@ -1,5 +1,5 @@
 """
-TODO: NEED REWRITE
+
 Frontside GUI for sending commands to backend. This is the top level
 module for the program. It contains the main routine and starts the
 GUI.
@@ -16,6 +16,12 @@ to perform.
 There are various qt signal/slot relationships for event updates between these
 objects.
 
+TODO:
+  Revist axis names. It might be cleaner to use list of lists for axis names
+  since some commands are for 1 axis and some are for 2. Instead of 'x,y,z,t'
+  we would have [['x'],['y'],['z'],['t']] and instead of 'x&y' we would have
+  [['x','y']]
+
 """
 
 import sys
@@ -24,8 +30,13 @@ from PyQt5.QtWidgets import QApplication, QDialog
 from PyQt5.uic import loadUi
 from functools import partial
 
+
+from  post_office import PostOffice, Letter
 import commands
 import component_ids
+import marshaller_comm
+
+
 
 
 class CmdInputDisplay(QDialog):
@@ -44,10 +55,6 @@ class CmdInputDisplay(QDialog):
         self._status = self.START_UP
         self.lbl_status.setText(self._status)
         
-
-                
-
-
         
         #component setup
         self.__comp_mgr = component_ids.ComponentIdManager()
@@ -75,7 +82,10 @@ class CmdInputDisplay(QDialog):
         self.cmds = commands.CommandList()
         self.__populate_commands()
 
-        self.cmd_interpreter = commands.CommandInterpreter()
+        self.post_office = PostOffice( "commander_main.py")
+        self.cmd_interpreter = commands.CommandInterpreter( self.post_office)
+        
+        self.marshaller = marshaller_comm.MarshallerComm(self.post_office)
         
         #signals and slots
         self.rb_edit_mac.toggled.connect(self.on_edit_mac_toggle)
@@ -212,7 +222,6 @@ class CmdInputDisplay(QDialog):
         if self.lbl_parm2.isVisible():
             parm_list.append( (self.lbl_parm2.text().strip(), self.le_parm2.text().strip()))
         block = self.cmds.dict_[name].blocking
-        self.cmds.get_command( name, axis, parm_list, block)
         self.cmd_interpreter.send_command( name, axis, parm_list, block )
     
     @pyqtSlot()
