@@ -1,5 +1,5 @@
 """
-
+commmand_main.py
 Frontside GUI for sending commands to backend. This is the top level
 module for the program. It contains the main routine and starts the
 GUI.
@@ -34,7 +34,7 @@ from functools import partial
 from  post_office import PostOffice, Letter
 import commands
 import component_ids
-import marshaller_comm
+import data_link
 
 
 
@@ -85,7 +85,7 @@ class CmdInputDisplay(QDialog):
         self.post_office = PostOffice( "commander_main.py")
         self.cmd_interpreter = commands.CommandInterpreter( self.post_office)
         
-        self.marshaller = marshaller_comm.MarshallerComm(self.post_office)
+        self.data_link = data_link.DataLink(self.post_office)
         
         #signals and slots
         self.rb_edit_mac.toggled.connect(self.on_edit_mac_toggle)

@@ -139,14 +139,14 @@ class CommandInterpreter(QObject):
     #signals for inter-object communication
     gotNewCommands = pyqtSignal() #tell CommMarshal that commands are available.
     
+    PO_ID = "CommandInterpreter_1"
     
     def __init__(self, po):
         super().__init__()
-        self._po_id = 'ci'
         self.cmds_to_send = [] #CommMarshal will get commands here
         print(f"in CmdIntrp, msg in po: {po.id_msg}")
         self.post_office = po
-        self.post_office.register(self._po_id, self.mail_call)
+        self.post_office.register(self.PO_ID, self.mail_call)
         
     
     def mail_call( self,letter ):
@@ -185,7 +185,7 @@ class CommandInterpreter(QObject):
         #in a cmd_list that needs to be sent to the marshaller, one at a time
         cmd_list = self.create_low_level_cmd_list( name, axes, parm_list, block)
         for cmd in cmd_list:
-            letter = post_office.Letter('m', self._po_id, cmd)
+            letter = post_office.Letter('DataLink_1', self.PO_ID, cmd)
             self.post_office.post(letter)
 
         self.gotNewCommands.emit()
