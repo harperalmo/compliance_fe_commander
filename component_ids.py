@@ -148,10 +148,10 @@ class ComponentIdManager:
         
 if __name__ == "__main__":
     cv = ComponentIdManager()
-    print(f"x_axis id in bytes: {cv.get_id('x_axis')}")
-    print(f"x_axis id as string: {cv.get_id('x_axis', cv.STRING)}")
-    print(f"marshaller id in bytes: {cv.get_id('m')}")
-    print(f"marshaller id as string: {cv.get_id('m', cv.STRING)}")
+    for name in cv.get_current_component_names():
+        print(f"{name}'s mac id in bytes:  {cv.get_id(name)}")
+        print(f"{name}'s mac id as string: {cv.get_id(name, cv.STRING)}")
+
     names = cv.get_current_component_names()
     print(names)
     

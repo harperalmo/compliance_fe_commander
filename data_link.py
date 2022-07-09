@@ -126,6 +126,7 @@ class DataLink( QThread ):
                 print(f"in run, content: <{content}>")
                 #tx_data = str(self.to_backend_q.get())
                 send_str = self.serialize(content)
+                print(f"after serialize: <{send_str}>")
                 self.uart.write(self.str_bytes(send_str))
                 
         if self.uart:

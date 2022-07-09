@@ -12,7 +12,7 @@ GUI cmd creation system. Any new command additions should be added to the
 CommandList cmd_list attribute.
 
 An instance of CommandList is useful for accessing the list of commands for a
-user of the system. The dict_ attribute can be used to get a command's
+user of the system. The public_dict_ attribute can be used to get a command's
 attributes for user choices. Lookup is by command name.
 
 A CommandInterpreter object takes a command created by the user and transforms
@@ -47,8 +47,8 @@ with commands for user selection"""
 
         
 class CommandList:
-    """Provides the list of commands for our system. Add new commands to the
-    _cmd_list structure. For each command, the following is provided:
+    """Provides the list of commands a user can invoke. Add new commands to the
+    _public_cmd_list structure. For each command, the following is provided:
     
     name:  This is the name that is used to invoke the command and also is used
     in a dictionary to look up a command and get its other attributes.
@@ -64,7 +64,7 @@ class CommandList:
     blocking: This is a boolean that is True if the command should be a blocking
     call to the backend, False if non-blocking.
     
-    CommandList creates a dictionary attribute called dict_ that can be used to
+    CommandList creates a dictionary attribute called public_dict_ that can be used to
     lookup     commands by the command name. The value will be the command
     object that allows the various attributes (axes, parm names, blocking needs)
     to be retrieved. Note that the command name is also one of the values. This
@@ -75,6 +75,9 @@ class CommandList:
     distance for the increment commands. This needs to be stored on the front
     side for script content and translation from an increment command into a
     distance command that is ultimately given to the backend for processing.
+    
+    There is also a similar structure for internal private commands such as
+    sending startup info. This is in the _private_cmd_list structure.
 
     """
     
@@ -84,7 +87,7 @@ class CommandList:
     #param names string, and finally a boolean value indicating whether or not
     #the command should be blocking. The axis and param name list should be
     #comma separated.
-    _cmd_list = [("get_axis_name","x,y,z,t","", True), #used for comm level
+    _public_cmd_list = [("get_axis_name","x,y,z,t","", True), #used for comm level
                  ("move_rel","x,y","distance", True),#move relative - => backwrd
                  ("move_abs","x,y","location", True),#move absolute
                  ("z_down", "z","", True),
@@ -95,14 +98,15 @@ class CommandList:
                  ("inc_right", "x", "", True),
                  ("inc_away", "y", "", True),
                  ("inc_towards", "y", "", True),
+                 ("set_axis_mac_ids","m","", True),
              ]
     #This is the dictionary that stores the commands and their attributes. The
     #command name is the keyword and the value for each keyword is the command
     #object
-    dict_ = {}
-    _need_dict = True  #Used to insure we create the dict only 1 time.
+    public_dict_ = {}
+    _need_public_dict = True  #Used to insure we create the dict only 1 time.
     #Subsequent CommandList instantiations will simply use the already created
-    #dict_ sructure.
+    #public_dict_ sructure.
     
     #Moving by an increment moves in some x or y direction by some speciffied
     #distance. The current assumption is that increments are the same for both
@@ -110,11 +114,25 @@ class CommandList:
     #now are inches.
     increment_distance = None
     
+    
+    _private_cmd_list = [("set_axis_mac_ids","m","", False), #used for comm level
+
+             ]
+    #This is the dictionary that stores dinternal commands and their attributes.
+    #The command name is the keyword and the value for each keyword is the
+    #command object
+    private_dict_ = {}
+    _need_private_dict = True  #Used to insure we create the dict only 1 time.
+    #Subsequent CommandList instantiations will simply use the already created
+    #public_dict_ sructure.
+    
+    
+    
       
     def __init__(self):
         
-        if self.__class__._need_dict:
-            for c in self._cmd_list:
+        if self.__class__._need_public_dict:
+            for c in self._public_cmd_list:
                 name, axes, parm_names, blocking = c
                 assert name, "empty name in command object"
                 assert axes, "Commmand axis list empty"
@@ -124,8 +142,21 @@ class CommandList:
                 assert blocking, "Need to specify blocking needs"
             
                 cmd = Command(name, axis_list, parm_list, blocking)
-                self.__class__.dict_.setdefault(name , cmd)
-            self.__class__._need_dict = False
+                self.__class__.public_dict_.setdefault(name , cmd)
+            self.__class__._need_public_dict = False
+
+        if self.__class__._need_private_dict:
+            for c in self._private_cmd_list:
+                name, axes, parm_names, blocking = c
+                assert name, "empty name in command object"
+                assert axes, "Commmand axis list empty"
+                axis_list = [axis.strip() for axis in axes.strip().split(',')]
+                parm_list = [parm.strip() for parm in parm_names.strip().split(',')]
+
+         
+                cmd = Command(name, axis_list, parm_list, blocking)
+                self.__class__.private_dict_.setdefault(name , cmd)
+            self.__class__._need_private_dict = False
             
     def set_increment(self, distance):
         self.__class__.increment_distance = distance
@@ -137,7 +168,7 @@ class CommandInterpreter(QObject):
     to the axis work needed to carry out the command task, and breaking hybrid
     commands into simpler commands for the backend.'''
     #signals for inter-object communication
-    gotNewCommands = pyqtSignal() #tell CommMarshal that commands are available.
+  #  gotNewCommands = pyqtSignal() #tell CommMarshal that commands are available.
     
     MY_PO_ID = "CommandInterpreter_1"
     
@@ -153,7 +184,8 @@ class CommandInterpreter(QObject):
         print(f"CmdInterp: you've got mail in Cmd_intrp.  {letter}")
         
     
-    def create_low_level_cmd_list( self, cmd_name, axes, parm_list, block):
+    def create_low_level_public_cmd_list( self, cmd_name, axes,
+                                          parm_list, block):
         """takes the parts of a high level command created by the user
         and returns a list of low level commands that are sent along to
         the back end via the marshaller.
@@ -190,11 +222,11 @@ class CommandInterpreter(QObject):
         #TOO: Map command into 1 or more lower level commands. This results
         #in a cmd_list that needs to be sent to the marshaller, via the
         #data_link, one at a time
-        cmd_list = self.create_low_level_cmd_list( cmd_name, axes,
+        cmd_list = self.create_low_level_public_cmd_list( cmd_name, axes,
                                                    parm_list, block)
         for cmd in cmd_list:
             letter = post_office.Letter('DataLink_1', self.MY_PO_ID, cmd)
             self.post_office.post(letter)
 
-        self.gotNewCommands.emit()
+        #self.gotNewCommands.emit()
         
