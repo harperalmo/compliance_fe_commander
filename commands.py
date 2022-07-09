@@ -160,14 +160,20 @@ class CommandInterpreter(QObject):
         TO DO: Handle mutli-axis commands and safety insertions, e.g. z axis
         up before movement, as well as pause to stop stuff in order to take a
         measurement. Perhaps a gui red/green button is needed to indicate
-        pause state..."""
+        pause state...
+        NOTE: The passed in parm list may have 0 or more parameters, so
+        parsing into command sets need to consider this"""
         
         #Create a single commmand for each axis in a multi-axis command
         axis_list = axes.split(sep=_axis_separator)
         cmds = []
         for axis in axis_list:
             #create cmd list
-            n = cmd_name; a = axis; p = parm_list[0]
+            print(f'in create_low_level..., parm_list is {parm_list}')
+            n = cmd_name; a = axis;
+            p = []
+            for parm in parm_list:
+                p.append(parm)
             cmd = [n, a, p, block]
             print(f"cmds.py.lowlevel: cmd = {cmd}")
             cmds.append(cmd)
