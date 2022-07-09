@@ -25,6 +25,7 @@ import serial
 import time
 import queue
 import post_office
+import json
 
 TO_BACKEND_Q_SIZE     = 50
 TO_POST_OFFICE_Q_SIZE = 50
@@ -51,16 +52,22 @@ class DataLink( QThread ):
         self.running = True #boolean used to indicate run() should continue.
         
     def backend_transport_callback(self, letter):
-        """callback post office invokes to send a letter to the this DataLink
+        """Post Office calls this to deliver a letter to this DataLink
         object. This will presumably be a command or message for the backend,
-        but it could be a message for us as well. This method must first check
+        but it could be a message this object well. This method must first check
         to see if it is for us (and deal with it) before sending it on to
-        the marshaller component over serial. """
+        the marshaller component over serial. Any letter placed in to_backend_q
+        will be assumed to be headed to the marshaller for processing."""
         
-        #TO DO: deal with message to us.
+        #TO DO: deal with message to us. Any mail place in the to_backend
+        #queue is assumed to be headed to the Marshaller or backend, so
+        #mail headed solely to this object must be handled here and NOT placed
+        #in the queue.
         
+        #Add letter to queue for processing when the run thread activates. Any
+        #letter added to the queue is assumed to be for the backend.
         self.to_backend_q.put(letter)
-        print(f"mail call for Marshaller. Letter is:")
+        print(f"mail call for DataLink. Letter is:")
         print(f"To:      {letter.destination()}")
         print(f"From:    {letter.source()}")
         print(f"Content: {letter.content()}")
@@ -83,7 +90,13 @@ class DataLink( QThread ):
     def uart_send(self, s ):
         print(f"uart sending: {s}")
         
-        
+
+    def serialize( self, str_list):
+        """ Serializes a list of string elements using json in order to
+        transport over uart"""
+        return json.dumps(str_list)
+    
+ 
     def run(self):
         """This is the async routine that is used for the thread process. It's
         job is to manage the serial port and move messages to the appropriate
@@ -101,14 +114,19 @@ class DataLink( QThread ):
         while self.running:
             s = self.uart.read(self.uart.in_waiting or 1)
             if s:
+                #We have letter from backend
                 msg = self.uart_receive(s)
                 #Need to send to PO
                 print(f"run got backend message: {msg}")
                 
-                
+            #Deal with mail addressed to us. Any     
             if not self.to_backend_q.empty():
-                tx_data = str(self.to_backend_q.get())
-                self.uart.write(self.str_bytes(tx_data))
+                letter = self.to_backend_q.get()
+                content = letter.content()
+                print(f"in run, content: <{content}>")
+                #tx_data = str(self.to_backend_q.get())
+                send_str = self.serialize(content)
+                self.uart.write(self.str_bytes(send_str))
                 
         if self.uart:
             self.uart.close()

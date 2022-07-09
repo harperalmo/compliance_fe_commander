@@ -20,7 +20,7 @@ TODO:
   Revist axis names. It might be cleaner to use list of lists for axis names
   since some commands are for 1 axis and some are for 2. Instead of 'x,y,z,t'
   we would have [['x'],['y'],['z'],['t']] and instead of 'x&y' we would have
-  [['x','y']]
+  [['x','y']]. This may cause issues populating the gui fields.
 
 """
 
@@ -28,7 +28,9 @@ import sys
 from PyQt5.QtCore import pyqtSlot, QDataStream, QIODevice, Qt
 from PyQt5.QtWidgets import QApplication, QDialog
 from PyQt5.uic import loadUi
-from functools import partial
+from functools import partial 
+
+
 
 
 from  post_office import PostOffice, Letter
@@ -36,6 +38,9 @@ import commands
 import component_ids
 import data_link
 
+#Make modules stored in py_compliance_proj/common available
+import sys
+sys.path.insert(0, '/media/loki9/USBDRV1/softDev/py_compliance_proj/common')
 
 
 
@@ -100,6 +105,7 @@ class CmdInputDisplay(QDialog):
         self.pBtn_save_z_mac.clicked.connect(lambda: self.on_save_btn_clicked('z'))
         self.pBtn_save_t_mac.clicked.connect(lambda: self.on_save_btn_clicked('t'))
         
+        self.data_link.start()
         self.ready_for_business()
         
     def __set_component_labels(self):

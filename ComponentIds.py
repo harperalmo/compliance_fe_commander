@@ -2,14 +2,17 @@
   ComponentIds manages the ids for the axis handler components and the
   command marshaller. Presently, these are mac addresses used for esp-now
   communication protocol.
+  TO DO: Check out use of _component_list and replace, update functionality.
+  IT IS BROKEN
 """
 import json
 
 class ComponentIdManager:
     """ Manages access to component ids used for communication in the system."""
     
-    __storage_name = "componentIds.json"
-    __component_dict = {}
+    _storage_name   = "componentIds.json"
+    _component_list = []
+    _mac_dict= {}
     
     #constants for type of id return value. See get_id, a method that uses these
     #to specify type of return value
@@ -17,18 +20,19 @@ class ComponentIdManager:
     BYTES  = 2
     
     def __init__(self):
-        print('in nit')
-        self.__component_dict = {}
-        self.__get_current_ids()
+        print('in init')
+        self._get_current_mac_ids()
         
         
-    def __get_current_ids(self):
+    def _get_current_mac_ids(self):
         """Private function used to get current ids into dictionary. The file
         uses dictionary format."""
         #access the contents of the storage file
-        with open(self.__storage_name) as json_file:
-            self.__component_dict = json.load(json_file)
-            print(f"dict read in: {self.__component_dict}")
+        with open(self._storage_name) as json_file:
+            self._component_list = json.load(json_file)
+            self._mac_dict = self._component_list[1]
+            print(f"dict read in: {self._mac_dict}")
+            print(f"Component list read in: {self._component_list}")
             
                      
     def mac_str_to_bytes(self, mac_str):
@@ -51,38 +55,37 @@ class ComponentIdManager:
             if len(v_str) == 1:
                 v_str = '0'+v_str
             rtn_str = rtn_str + v_str + ':'
-            
-        rtn_str.rstrip(':')
-        return rtn_str
-        
-    def get_id(self, keyword, format=BYTES):
+        return rtn_str.rstrip(':')
+  
+  
+    def get_id(self, keyword, rtn_format=BYTES):
         """Returns the comm id for the provided keyword. The format can be
         used to return the id as either the bytes (BYTES)needed for establishing
         communication (espnow mac id as byte string) or as a STRING that can
         be used to display to users.
         format = [BYTES, STRING]"""
         
-        id = self.__component_dict[keyword]
-        if format == self.BYTES:
-            id = self.mac_str_to_bytes(id)
-        return id
+        mac_id = self._mac_dict[keyword]
+        if rtn_format == self.BYTES:
+            mac_id = self.mac_str_to_bytes(mac_id)
+        return mac_id
     
     def replace_id(self, keyword, id_str):
         """Replaces the id with the passed in string. For espnow, the id must be
         a mac address string in the form hh:hh:hh:hh:hh:hh."""
         #TODO:   Need to check to make sure keyword exists"
-        if keyword in self.__component_dict:
-            self.__component_dict.update({keyword:id_str})
-            self.__update_storage()
+        if keyword in self._component_dict:
+            self._component_dict.update({keyword:id_str})
+            self._update_storage()
         else:
             printf("replace_id: keyword not found!")
             
-    def __update_storage(self):
+    def _update_storage(self):
         """ Updates the storage file to reflect current state of the
             components dictionary. This is done when an id gets updated."""
         #jsonize the dictionary so it can be written into the file
-        new_contents = json.dumps(self.__component_dict, indent = 4)
-        f = open(self.__storage_name, "w")
+        new_contents = json.dumps(self._component_dict, indent = 4)
+        f = open(self._storage_name, "w")
         f.write(new_contents)
         f.close()
         
@@ -90,10 +93,10 @@ class ComponentIdManager:
         
 if __name__ == "__main__":
     cv = ComponentIdManager()
-    print(f"x_axis id in bytes: {cv.get_id('x_axis')}")
-    print(f"x_axis id as string: {cv.get_id('x_axis', cv.STRING)}")
-    print(f"marshaller id in bytes: {cv.get_id('marshaller')}")
-    print(f"marshaller id as string: {cv.get_id('marshaller', cv.STRING)}")
+    print(f"x_axis id in bytes: {cv.get_id('x')}")
+    print(f"x_axis id as string: {cv.get_id('x', cv.STRING)}")
+    print(f"marshaller id in bytes: {cv.get_id('m')}")
+    print(f"marshaller id as string: {cv.get_id('m', cv.STRING)}")
     
     
     

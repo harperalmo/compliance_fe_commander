@@ -86,6 +86,7 @@ class PostOffice:
         """send a letter through the post office."""
         if letter != None:
             cb = self._registrants[letter.destination()]
+            print(f"PO is sending a a letter to {letter.destination()}")
             cb(letter)
         else:
             print("Letter not supplied! it is None")
