@@ -88,13 +88,21 @@ class CommandList:
     #param names string, and finally a boolean value indicating whether or not
     #the command should be blocking. The axis and param name list should be
     #comma separated.
+    #NOTE: if a command is created that needs >1 parm for a single axis, the
+    #display and command parsing in the create_low_level_public_cmd_list method
+    #needs to change to handle that. Presently, a command for a single axis
+    #can have 0 or 1 parms, a 2 axis command can have 0, 1, or 2 parms. If 0,
+    #both get an empty parm list, if 1 parm, they both get the same parm value,
+    #and if 2 parms, the first axis gets the first parm and the second axis
+    #gets the 2nd parm. It is best to list the parms in this order: xyzt and
+    #make sure that the parms are also in the same order.
     _public_cmd_list = [
                  ("move_rel","x,y","distance", True),#move relative - => backwrd
                  ("move_abs","x,y","location", True),#move absolute
                  ("z_down", "z","", True),
                  ("z_up", "z", "", True),
                  ("to_point", "x&y", "x_location,y_location", True),
-                 ("set_inc", "x&y", "x_delta, y_delta", True),
+                 ("set_inc", "x&y", "delta", True),
                  ("inc_left", "x", "", True),
                  ("inc_right", "x", "", True),
                  ("inc_away", "y", "", True),
@@ -203,9 +211,14 @@ class CommandInterpreter(QObject):
         for i in range(0,len(axis_list)):
             #create cmd list
             n = cmd_name; a = axis_list[i];
-            if len(parm_list) > i: #maybe no parms for command
+            #If len(parm_list) > len(axis_list) something different needs
+            #to be done, like parm labels 
+            if len(parm_list) == 0:
+                p = []
+            elif len(parm_list) == 1:
+                p = parm_list[0]
+            else:
                 p = parm_list[i]
-            else: p = []
             cmd = [n, a, p, block]
             print(f"cmds.py.lowlevel: cmd = {cmd}")
             cmds.append(cmd)
