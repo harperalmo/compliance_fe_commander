@@ -38,14 +38,20 @@ class DataLink( QThread ):
     from a secondary thread that uses polling to check for data coming from
     the marshaller component or post office, send data to the respective
     locaton. Data is posted into queues that are checked by signal/slot methods
-    that PyQt5 implements. """
+    that PyQt5 implements.
+
+    NOTE: There is a time-since-last-transmission check in run() where the
+    uart.write occurs to make sure that messages don't get processed to
+    quickly. The uart is very slow to get to ready state after a write.
+    TODO: Check to see if read poses the same problems.
+    """
     
-    PO_ID                 = "DataLink_1"
+    MY_PO_ID  = "DataLink_1"
     
     def __init__( self, post_office ):
         QThread.__init__(self)
         self._post_office = post_office
-        self._post_office.register(self.PO_ID, self.backend_transport_callback)
+        self._post_office.register(self.MY_PO_ID, self.backend_transport_callback)
         
         self.to_backend_q     = queue.Queue(TO_BACKEND_Q_SIZE)
         self.to_post_office_q = queue.Queue(TO_POST_OFFICE_Q_SIZE)
@@ -110,6 +116,8 @@ class DataLink( QThread ):
                            timeout  = SERIAL_TIMEOUT)
         time.sleep(SERIAL_TIMEOUT*1.2)
         self.uart.flushInput()
+        WRITE_TIME_DELAY = 0.5 #seconds
+        start_time = time.perf_counter()
         
         while self.running:
             s = self.uart.read(self.uart.in_waiting or 1)
@@ -127,7 +135,17 @@ class DataLink( QThread ):
                 #tx_data = str(self.to_backend_q.get())
                 send_str = self.serialize(content)
                 print(f"after serialize: <{send_str}>")
+                #Need a timeout so uart can keep up with cmd processing
+                #time.sleep(0.3) #perhaps this should be in the post_office.post
+                current_time = time.perf_counter()
+                elapsed_time = current_time - start_time
+                print(f"st: {start_time}, ct: {current_time}, et = {elapsed_time}")
+                start_time = current_time
+                if elapsed_time < WRITE_TIME_DELAY:
+                    time.sleep( WRITE_TIME_DELAY- elapsed_time)
+                    start_time = time.perf_counter()
                 self.uart.write(self.str_bytes(send_str))
+                
                 
         if self.uart:
             self.uart.close()

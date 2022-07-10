@@ -143,7 +143,14 @@ class ComponentIdManager:
         f = open(self._storage_name, "w")
         f.write(new_contents)
         f.close()
-        
+     
+    def is_existing_axis(self, axis_list):
+        """used to make sure the axes are ids for existing axes. If an axis
+        id is not found in existing axes, False is returned, else True"""
+        for axis in axis_list:
+            if axis not in self._comp_ids_dict.keys():
+                return False
+        return True
     
         
 if __name__ == "__main__":

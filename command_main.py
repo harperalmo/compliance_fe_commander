@@ -9,26 +9,14 @@ the lower level part of the program.
 
 The commands module contains the CommandsList class that is responsible for
 supplying the list of user commands that run the compliance system. After some
-processing, commands are sent on to the communications module server_comm's
-objects which send the commands on to the backside where a command actually gets
-to perform.
-
-There are various qt signal/slot relationships for event updates between these
-objects.
-
-TODO:
-  Revist axis names. It might be cleaner to use list of lists for axis names
-  since some commands are for 1 axis and some are for 2. Instead of 'x,y,z,t'
-  we would have [['x'],['y'],['z'],['t']] and instead of 'x&y' we would have
-  [['x','y']]. This may cause issues populating the gui fields.
-
+processing, commands are sent on to the marshalller via the data_link object.
 """
 
 import sys
-from PyQt5.QtCore import pyqtSlot, QDataStream, QIODevice, Qt
-from PyQt5.QtWidgets import QApplication, QDialog
-from PyQt5.uic import loadUi
-from functools import partial
+from   PyQt5.QtCore import pyqtSlot, QDataStream, QIODevice, Qt
+from   PyQt5.QtWidgets import QApplication, QDialog
+from   PyQt5.uic import loadUi
+from   functools import partial
 import RPi.GPIO as GPIO
 import time
 
@@ -67,8 +55,8 @@ class CmdInputDisplay(QDialog):
         
         
         #component setup
-        self._comp_mgr = component_ids.ComponentIdManager()
-        self._current_component_names = self._comp_mgr.get_current_component_names()
+        self._component_manager = component_ids.ComponentIdManager()
+        self._current_component_names = self._component_manager.get_current_component_names()
         self._set_component_labels()       
         
 
@@ -116,6 +104,7 @@ class CmdInputDisplay(QDialog):
         self.restart_marshaller()
         
         self.data_link.start()
+        time.sleep(0.3) #Need to let uart get ready. Slow to ready state.
         self.send_axis_ids_to_marshaller()
         self.ready_for_business()
 
@@ -126,16 +115,16 @@ class CmdInputDisplay(QDialog):
     def _set_component_labels(self):
         """Adds text lables to the gui labels identifying the ids for the
            components."""
-        self.lbl_m.setText( self._comp_mgr.get_component_label('m'))
-        self.lbl_x.setText( self._comp_mgr.get_component_label('x'))
-        self.lbl_y.setText( self._comp_mgr.get_component_label('y'))
-        self.lbl_z.setText( self._comp_mgr.get_component_label('z'))
-        self.lbl_t.setText( self._comp_mgr.get_component_label('t'))
+        self.lbl_m.setText( self._component_manager.get_component_label('m'))
+        self.lbl_x.setText( self._component_manager.get_component_label('x'))
+        self.lbl_y.setText( self._component_manager.get_component_label('y'))
+        self.lbl_z.setText( self._component_manager.get_component_label('z'))
+        self.lbl_t.setText( self._component_manager.get_component_label('t'))
         
     def _load_mac_addresses(self):
         """Populates the mac address table"""
         for name in self._current_component_names:
-            mac_addr = self._comp_mgr.get_id( name, self._comp_mgr.STRING)
+            mac_addr = self._component_manager.get_id( name, self._component_manager.STRING)
             mac_boxes = self._mac_addr_dict[name]
             mac_vals = mac_addr.split(':')
             for(widget, mac_val) in zip(mac_boxes, mac_vals):
@@ -168,8 +157,8 @@ class CmdInputDisplay(QDialog):
         """
         time.sleep(1.5)  #uart connection takes some time!!! 1.0 fails!
         mac_list = []
-        for name in self._comp_mgr.get_current_component_names():
-            mac_id_str = self._comp_mgr.get_id(name, self._comp_mgr.STRING)
+        for name in self._component_manager.get_current_component_names():
+            mac_id_str = self._component_manager.get_id(name, self._component_manager.STRING)
             mac_list.append((name, mac_id_str))
         #jstr = json.dumps( mac_list)
         
@@ -268,7 +257,7 @@ class CmdInputDisplay(QDialog):
         print(f'on_save_btn id str: {id_str}')
         if len(id_str )<= len(':::::'):
                id_str = None
-        self._comp_mgr.replace_id(axis, id_str)
+        self._component_manager.replace_id(axis, id_str)
         self.rb_edit_mac.setChecked(False)
         
     
@@ -276,13 +265,17 @@ class CmdInputDisplay(QDialog):
     def send_command_to_client(self):
         name = self.cBx_command.currentText()
         axis = self.cBx_axis.currentText()
-        parm_list = []
-        if self.lbl_parm1.isVisible():
-            parm_list.append( (self.lbl_parm1.text().strip(), self.le_parm1.text().strip()))
-        if self.lbl_parm2.isVisible():
-            parm_list.append( (self.lbl_parm2.text().strip(), self.le_parm2.text().strip()))
-        block = self.cmds.public_dict_[name].blocking
-        self.cmd_interpreter.send_command( name, axis, parm_list, block )
+        axis_list = self.cmd_interpreter.get_axis_list(axis)
+        if self._component_manager.is_existing_axis(axis_list):
+            parm_list = []
+            if self.lbl_parm1.isVisible():
+                parm_list.append( self.le_parm1.text().strip())
+            if self.lbl_parm2.isVisible():
+                parm_list.append(  self.le_parm2.text().strip())
+            block = self.cmds.public_dict_[name].blocking
+            self.cmd_interpreter.send_command( name, axis, parm_list, block )
+        else: #do not send. 
+            print(f"send_command_to_client not sending to {axis}")
     
     @pyqtSlot()
     def close_dlg(self):

@@ -26,9 +26,10 @@ send over to the backend
 from PyQt5.QtCore import (pyqtSignal,
                           QObject,
                           )
+import time
 import post_office
 
-_axis_separator = '&' #used for mutli-axis cmds to separate the axes in display
+_AXIS_SEPARATOR = '&' #used for mutli-axis cmds to separate the axes in display
 
 
 print("Importing commands.py")
@@ -87,19 +88,18 @@ class CommandList:
     #param names string, and finally a boolean value indicating whether or not
     #the command should be blocking. The axis and param name list should be
     #comma separated.
-    _public_cmd_list = [("get_axis_name","x,y,z,t","", True), #used for comm level
+    _public_cmd_list = [
                  ("move_rel","x,y","distance", True),#move relative - => backwrd
                  ("move_abs","x,y","location", True),#move absolute
                  ("z_down", "z","", True),
                  ("z_up", "z", "", True),
                  ("to_point", "x&y", "x_location,y_location", True),
-                 ("set_inc", "x&y", "distance", True),
+                 ("set_inc", "x&y", "x_delta, y_delta", True),
                  ("inc_left", "x", "", True),
                  ("inc_right", "x", "", True),
                  ("inc_away", "y", "", True),
                  ("inc_towards", "y", "", True),
-                 ("set_axis_mac_ids","m","", True),
-             ]
+                 ]
     #This is the dictionary that stores the commands and their attributes. The
     #command name is the keyword and the value for each keyword is the command
     #object
@@ -139,7 +139,7 @@ class CommandList:
                 axis_list = [axis.strip() for axis in axes.strip().split(',')]
                 parm_list = [parm.strip() for parm in parm_names.strip().split(',')]
 
-                assert blocking, "Need to specify blocking needs"
+                assert blocking != None, "Need to specify blocking needs"
             
                 cmd = Command(name, axis_list, parm_list, blocking)
                 self.__class__.public_dict_.setdefault(name , cmd)
@@ -197,22 +197,26 @@ class CommandInterpreter(QObject):
         parsing into command sets need to consider this"""
         
         #Create a single commmand for each axis in a multi-axis command
-        axis_list = axes.split(sep=_axis_separator)
+        print(f"in create_low_level_public: {cmd_name}, {axes}, {parm_list}")
+        axis_list = self.get_axis_list( axes)
         cmds = []
-        for axis in axis_list:
+        for i in range(0,len(axis_list)):
             #create cmd list
-            print(f'in create_low_level..., parm_list is {parm_list}')
-            n = cmd_name; a = axis;
-            p = []
-            for parm in parm_list:
-                p.append(parm)
+            n = cmd_name; a = axis_list[i];
+            if len(parm_list) > i: #maybe no parms for command
+                p = parm_list[i]
+            else: p = []
             cmd = [n, a, p, block]
             print(f"cmds.py.lowlevel: cmd = {cmd}")
             cmds.append(cmd)
         return cmds
     
         
-    
+    def get_axis_list(self, axis_str):
+        """takes the display string for axes, eg x, y, x&y, and returns
+        a list of axis strings, e.g. x -> [x], x&y -> [x,y]"""
+        return axis_str.split(sep=_AXIS_SEPARATOR)
+        
     
     def send_command(self, cmd_name, axes, parm_list, block):
         """ The ui that gets a user-created command should call this to start
@@ -227,6 +231,8 @@ class CommandInterpreter(QObject):
         for cmd in cmd_list:
             letter = post_office.Letter('DataLink_1', self.MY_PO_ID, cmd)
             self.post_office.post(letter)
+ #           if len(cmd_list) > 1:
+ #               time.sleep(0.3)  #pause to give uart time to re-init
 
         #self.gotNewCommands.emit()
         
